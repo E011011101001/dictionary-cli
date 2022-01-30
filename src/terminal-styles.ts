@@ -36,64 +36,79 @@ export class DisplayPattern {
     this._bold = false
     this._italic = false
     this._underline = false
-    this._foreground = 'WHITE'
-    this._background = 'BLACK'
+    this._foreground = ''
+    this._background = ''
   }
 
-  bold () {
+  bold (): DisplayPattern {
     this._bold = true
+    return this
   }
 
-  public italic () {
+  public italic (): DisplayPattern {
     this._italic = true
+    return this
   }
 
-  public underline () {
+  public underline (): DisplayPattern {
     this._underline = true
+    return this
   }
 
-  public set foreground (color: number | string) {
+  public foreground (color: number | string): DisplayPattern {
     this._foreground = color
+    return this
   }
 
-  public set background (color: number | string) {
+  public background (color: number | string): DisplayPattern {
     this._background = color
-  }
-}
-
-export function reset_display_pattern (): void {
-  process.stdout.write('\033[m')
-}
-
-export function set_display_pattern (pattern: DisplayPattern): void {
-  let sequence = ''
-  if (pattern._bold) {
-    sequence += styleCodes.BOLD
-  }
-  if (pattern._italic) {
-    sequence += styleCodes.ITALIC
-  }
-  if (pattern._underline) {
-    sequence += styleCodes.UNDERLINE
+    return this
   }
 
-  sequence += styleCodes.FG
-  if (typeof pattern._foreground === 'number') {
-    sequence += pattern._foreground.toString()
-  } else if (Object.keys(colorCodes).indexOf(pattern._foreground) >= 0) {
-    sequence += colorCodes[pattern._foreground]
-  } else {
-    console.error(`Color '${pattern._foreground}' not valid.`)
+  private _set_display_pattern (): void {
+    let sequence = ''
+    if (this._bold) {
+      sequence += styleCodes.BOLD
+    }
+    if (this._italic) {
+      sequence += styleCodes.ITALIC
+    }
+    if (this._underline) {
+      sequence += styleCodes.UNDERLINE
+    }
+
+    if (this._foreground !== '') {
+      sequence += styleCodes.FG
+      if (typeof this._foreground === 'number') {
+        sequence += this._foreground.toString()
+      } else if (Object.keys(colorCodes).indexOf(this._foreground) >= 0) {
+        sequence += colorCodes[this._foreground]
+      } else {
+        console.error(`Color '${this._foreground}' not valid.`)
+      }
+    }
+
+    if (this._background !== '') {
+      sequence += styleCodes.BG
+      if (typeof this._background === 'number') {
+        sequence += this._background.toString()
+      } else if (Object.keys(colorCodes).indexOf(this._background) >= 0) {
+        sequence += colorCodes[this._background]
+      } else {
+        console.error(`Color '${this._background}' not valid.`)
+      }
+    }
+
+    process.stdout.write('\x1b[' + sequence + 'm')
   }
 
-  sequence += styleCodes.BG
-  if (typeof pattern._background === 'number') {
-    sequence += pattern._background.toString()
-  } else if (Object.keys(colorCodes).indexOf(pattern._background) >= 0) {
-    sequence += colorCodes[pattern._background]
-  } else {
-    console.error(`Color '${pattern._background}' not valid.`)
+  private _reset_display_pattern (): void {
+    process.stdout.write('\x1b[m')
   }
 
-  process.stdout.write('\033[' + sequence + 'm')
+  public print (str: string, config = { ending: '\n' }) {
+    this._set_display_pattern()
+    process.stdout.write(str + config.ending)
+    this._reset_display_pattern()
+  }
 }
