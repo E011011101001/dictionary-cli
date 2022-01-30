@@ -23,14 +23,42 @@ const colorCodes = {
   BRIGHT_MAGENTA  : '13',
   BRIGHT_CYAN     : '14',
   BRIGHT_WHITE    : '15',
-}
+} as { [key: string]: string }
 
-interface DisplayPattern {
-  bold: boolean
-  italic: boolean
-  underline: boolean
-  foreground: number | string
-  background: number | string
+export class DisplayPattern {
+  _bold!: boolean
+  _italic!: boolean
+  _underline!: boolean
+  _foreground!: number | string
+  _background!: number | string
+
+  constructor () {
+    this._bold = false
+    this._italic = false
+    this._underline = false
+    this._foreground = 'WHITE'
+    this._background = 'BLACK'
+  }
+
+  bold () {
+    this._bold = true
+  }
+
+  public italic () {
+    this._italic = true
+  }
+
+  public underline () {
+    this._underline = true
+  }
+
+  public set foreground (color: number | string) {
+    this._foreground = color
+  }
+
+  public set background (color: number | string) {
+    this._background = color
+  }
 }
 
 export function reset_display_pattern (): void {
@@ -39,28 +67,32 @@ export function reset_display_pattern (): void {
 
 export function set_display_pattern (pattern: DisplayPattern): void {
   let sequence = ''
-  if (pattern.bold) {
+  if (pattern._bold) {
     sequence += styleCodes.BOLD
   }
-  if (pattern.italic) {
+  if (pattern._italic) {
     sequence += styleCodes.ITALIC
   }
-  if (pattern.underline) {
+  if (pattern._underline) {
     sequence += styleCodes.UNDERLINE
   }
 
   sequence += styleCodes.FG
-  if (typeof pattern.foreground === 'number') {
-    sequence += pattern.foreground.toString()
+  if (typeof pattern._foreground === 'number') {
+    sequence += pattern._foreground.toString()
+  } else if (Object.keys(colorCodes).indexOf(pattern._foreground) >= 0) {
+    sequence += colorCodes[pattern._foreground]
   } else {
-    sequence += colorCodes[pattern.foreground]
+    console.error(`Color '${pattern._foreground}' not valid.`)
   }
 
   sequence += styleCodes.BG
-  if (typeof pattern.background === 'number') {
-    sequence += pattern.background.toString()
+  if (typeof pattern._background === 'number') {
+    sequence += pattern._background.toString()
+  } else if (Object.keys(colorCodes).indexOf(pattern._background) >= 0) {
+    sequence += colorCodes[pattern._background]
   } else {
-    sequence += colorCodes[pattern.background]
+    console.error(`Color '${pattern._background}' not valid.`)
   }
 
   process.stdout.write('\033[' + sequence + 'm')
