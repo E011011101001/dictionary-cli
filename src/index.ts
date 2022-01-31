@@ -13,6 +13,7 @@ interface WordEntry {
   spelling: string
   pronunciation?: string
   brief: MeaningEntry[]
+  meanings: MeaningEntry[]
 }
 
 interface DisplayConfig {
@@ -36,21 +37,26 @@ function mw_parse (html: string): WordEntry {
   const $ = cheerio.load(html)
   const spelling = $('.hword').first().text()
   const pronunciation = $('span.pr').first().text().trim()
+
+  const parse_from_dt = (_: number, el: cheerio.Element) => ({
+    PoS: $('span.fl a').first().text(),
+    definition: $(el).children('.dtText').first().text(),
+    examples: $(el).children('.ex-sent').map((_, el) => $(el).text()).get() as string[]
+  })
   const essentials = $('div.learners-essential-meaning span.dt')
-    .map((_, el) => ({
-      PoS: $('span.fl a').first().text(),
-      definition: $(el).children('.dtText').first().text(),
-      examples: $(el).children('.ex-sent').map((_, el) => $(el).text()).get() as string[]
-    }))
+    .map(parse_from_dt)
     .get() as MeaningEntry[]
 
 
-  // const entries = $('div[id^=dictionary-entry-]')
-  // console.log(entries)
+  const entries = $('div[id^=dictionary-entry-] span.dt')
+    .map(parse_from_dt)
+    .get() as MeaningEntry[]
+
   return {
     spelling,
     pronunciation,
-    brief: essentials
+    brief: essentials,
+    meanings: entries
   }
 }
 
@@ -65,29 +71,40 @@ function show_word (entry: WordEntry, config: DisplayConfig = {
     spelling: (new DisplayPattern()).foreground('BRIGHT_WHITE').bold()
   }
 }): void {
+  const show_meaning_entry = (entries: MeaningEntry[]) => {
+    let index = 1
+    for (const meaning of entries) {
+    // `${index++}. ${meaning.PoS} ${meaning.definition}`
+      if (index < 10) {
+        process.stdout.write(' ')
+      }
+      displayPattern.index.print(`${index++}`, { ending: '' })
+
+      process.stdout.write('. ')
+      if (meaning.PoS) {
+        displayPattern.PoS.print(meaning.PoS, { ending: '' })
+        process.stdout.write(' ')
+      }
+      displayPattern.definition.print(meaning.definition)
+
+      const exampleCount = Math.min(config.exampleCount, meaning.examples.length)
+      for (let i = 0; i < exampleCount; ++i) {
+        process.stdout.write( (i === 0) ? '    eg. ' : '         ')
+        displayPattern.examples.print(meaning.examples[i])
+      }
+      console.log()
+    }
+  }
   const displayPattern = config.displayPattern
   displayPattern.spelling.print(entry.spelling)
   displayPattern.pronunciation.print(`/${entry.pronunciation}/`)
-  console.log('')
+  console.log()
 
-  let index = 1
-  for (const meaning of entry.brief) {
-    // `${index++}. ${meaning.PoS} ${meaning.definition}`
-    displayPattern.index.print(`${index++}`, { ending: '' })
-    process.stdout.write('. ')
-    if (meaning.PoS) {
-      displayPattern.PoS.print(meaning.PoS, { ending: '' })
-      process.stdout.write(' ')
-    }
-    displayPattern.definition.print(meaning.definition)
+  console.log('-+-+-+-+-+- Brief Meaning -+-+-+-+-+-')
+  show_meaning_entry(entry.brief)
 
-    const exampleCount = Math.min(config.exampleCount, meaning.examples.length)
-    for (let i = 0; i < exampleCount; ++i) {
-      process.stdout.write( (i === 0) ? 'eg. ' : '    ')
-      displayPattern.examples.print(meaning.examples[i])
-    }
-    console.log('')
-  }
+  console.log('-+-+-+-+-+- Full Meaning -+-+-+-+-+-')
+  show_meaning_entry(entry.meanings)
 }
 
 async function main () {
