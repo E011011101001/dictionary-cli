@@ -3,16 +3,20 @@ import * as cheerio from 'cheerio'
 
 import { DisplayPattern } from './terminal-styles'
 
-interface MeaningEntry {
-  PoS?: string
+interface MeaningItem {
   definition: string
   examples: string[]
+}
+
+interface MeaningEntry {
+  PoS: string
+  meaningItems: MeaningItem[]
 }
 
 interface WordEntry {
   spelling: string
   pronunciation?: string
-  brief: MeaningEntry[]
+  brief: MeaningEntry | null
   meanings: MeaningEntry[]
 }
 
@@ -35,35 +39,45 @@ function mw_url (word: string): string {
 
 function mw_parse (html: string): WordEntry {
   const $ = cheerio.load(html)
+
+  $('div.more_defs').remove() // Remove kids definition, which also contains div.entry-header
+  const PoSList: string[] = $('div.entry-header').find('span.fl a').map((_, el) => $(el).text()).get()
   const spelling = $('.hword').first().text()
   const pronunciation = $('span.pr').first().text().trim()
 
   const parse_from_dt = (_: number, el: cheerio.Element) => ({
-    PoS: $('span.fl a').first().text(),
     definition: $(el).children('.dtText').first().text(),
     examples: $(el).children('.ex-sent').map((_, el) => $(el).text()).get() as string[]
   })
-  const essentials = $('div.learners-essential-meaning span.dt')
-    .map(parse_from_dt)
-    .get() as MeaningEntry[]
 
+  /**
+   * Assuming each word page has at most one essential meaning section.
+   * (It is possible that there may be one essential section for each PoS,
+   * but I have not found any such examples.)
+   */
+  const essentials = $('div.learners-essential-meaning span.dt').map(parse_from_dt).get() as MeaningItem[]
+  const brief = essentials.length ? {
+    PoS: PoSList[0],
+    meaningItems: essentials
+  } : null
 
-  const entries = $('div[id^=dictionary-entry-] span.dt')
-    .map(parse_from_dt)
-    .get() as MeaningEntry[]
+  const meanings = $('div[id^=dictionary-entry-]').map((i, el) => ({
+    PoS: PoSList[i],
+    meaningItems: $(el).find('span.dt').map(parse_from_dt).get()
+  })).get() as MeaningEntry[]
 
   return {
     spelling,
     pronunciation,
-    brief: essentials,
-    meanings: entries
+    brief,
+    meanings
   }
 }
 
 function show_word (entry: WordEntry, config: DisplayConfig = {
   exampleCount: 2,
   displayPattern: {
-    PoS: (new DisplayPattern()).italic(),
+    PoS: (new DisplayPattern()).italic().bold().foreground('BRIGHT_WHITE'),
     definition: new DisplayPattern(),
     examples: new DisplayPattern(),
     index: new DisplayPattern(),
@@ -71,26 +85,22 @@ function show_word (entry: WordEntry, config: DisplayConfig = {
     spelling: (new DisplayPattern()).foreground('BRIGHT_WHITE').bold()
   }
 }): void {
-  const show_meaning_entry = (entries: MeaningEntry[]) => {
+  const show_meaning_entry = (entry: MeaningEntry) => {
+    displayPattern.PoS.print(entry.PoS)
     let index = 1
-    for (const meaning of entries) {
+    for (const meaningItem of entry.meaningItems) {
     // `${index++}. ${meaning.PoS} ${meaning.definition}`
       if (index < 10) {
         process.stdout.write(' ')
       }
       displayPattern.index.print(`${index++}`, { ending: '' })
 
-      process.stdout.write('. ')
-      if (meaning.PoS) {
-        displayPattern.PoS.print(meaning.PoS, { ending: '' })
-        process.stdout.write(' ')
-      }
-      displayPattern.definition.print(meaning.definition)
+      displayPattern.definition.print(meaningItem.definition)
 
-      const exampleCount = Math.min(config.exampleCount, meaning.examples.length)
+      const exampleCount = Math.min(config.exampleCount, meaningItem.examples.length)
       for (let i = 0; i < exampleCount; ++i) {
-        process.stdout.write( (i === 0) ? '    eg. ' : '         ')
-        displayPattern.examples.print(meaning.examples[i])
+        process.stdout.write( (i === 0) ? '    eg. ' : '        ')
+        displayPattern.examples.print(meaningItem.examples[i])
       }
       console.log()
     }
@@ -100,11 +110,13 @@ function show_word (entry: WordEntry, config: DisplayConfig = {
   displayPattern.pronunciation.print(`/${entry.pronunciation}/`)
   console.log()
 
-  console.log('-+-+-+-+-+- Brief Meaning -+-+-+-+-+-')
-  show_meaning_entry(entry.brief)
+  if (entry.brief) {
+    console.log(' '.repeat(process.stdout.columns / 2 - 6) + 'Brief Meaning')
+    show_meaning_entry(entry.brief)
+  }
 
-  console.log('-+-+-+-+-+- Full Meaning -+-+-+-+-+-')
-  show_meaning_entry(entry.meanings)
+  console.log(' '.repeat(process.stdout.columns / 2 - 6) + 'Full Meaning')
+  entry.meanings.forEach(meaningEntry => show_meaning_entry(meaningEntry))
 }
 
 async function main () {
