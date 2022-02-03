@@ -29,6 +29,7 @@ export class DisplayPattern {
   _bold!: boolean
   _italic!: boolean
   _underline!: boolean
+  _align_center!: boolean
   _foreground!: number | string
   _background!: number | string
 
@@ -36,6 +37,7 @@ export class DisplayPattern {
     this._bold = false
     this._italic = false
     this._underline = false
+    this._align_center = false
     this._foreground = ''
     this._background = ''
   }
@@ -52,6 +54,11 @@ export class DisplayPattern {
 
   public underline (): DisplayPattern {
     this._underline = true
+    return this
+  }
+
+  public center (): DisplayPattern {
+    this._align_center = true
     return this
   }
 
@@ -107,8 +114,20 @@ export class DisplayPattern {
   }
 
   public print (str: string, config = { ending: '\n' }) {
+    const TerminalWidth = process.stdout.columns
+    while (str.length) {
+      const oneLine = str.slice(0, TerminalWidth)
+      str = str.slice(TerminalWidth)
+      const spaceCnt = this._align_center ? (TerminalWidth - oneLine.length) / 2 : 0
+      process.stdout.write(' '.repeat(spaceCnt))
+
+      this._set_display_pattern()
+      process.stdout.write(oneLine)
+      this._reset_display_pattern()
+    }
+
     this._set_display_pattern()
-    process.stdout.write(str + config.ending)
+    process.stdout.write(config.ending)
     this._reset_display_pattern()
   }
 }

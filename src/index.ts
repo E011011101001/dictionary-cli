@@ -81,8 +81,8 @@ function show_word (entry: WordEntry, config: DisplayConfig = {
     definition: new DisplayPattern(),
     examples: new DisplayPattern(),
     index: new DisplayPattern(),
-    pronunciation: new DisplayPattern(),
-    spelling: (new DisplayPattern()).foreground('BRIGHT_WHITE').bold()
+    pronunciation: new DisplayPattern().center(),
+    spelling: (new DisplayPattern()).foreground('BRIGHT_WHITE').bold().center()
   }
 }): void {
   const show_meaning_entry = (entry: MeaningEntry) => {
