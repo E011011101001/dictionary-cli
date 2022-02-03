@@ -113,7 +113,7 @@ export class DisplayPattern {
     process.stdout.write('\x1b[m')
   }
 
-  public print (str: string, config = { ending: '\n' }) {
+  public print (str: string, config = { ending: '\n' }): void {
     const TerminalWidth = process.stdout.columns
     while (str.length) {
       const oneLine = str.slice(0, TerminalWidth)
@@ -126,8 +126,6 @@ export class DisplayPattern {
       this._reset_display_pattern()
     }
 
-    this._set_display_pattern()
     process.stdout.write(config.ending)
-    this._reset_display_pattern()
   }
 }

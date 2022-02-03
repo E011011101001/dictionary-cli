@@ -29,6 +29,7 @@ interface DisplayConfig {
     PoS: DisplayPattern
     definition: DisplayPattern
     examples: DisplayPattern
+    sectionTitle: DisplayPattern
   }
 }
 
@@ -82,7 +83,8 @@ function show_word (entry: WordEntry, config: DisplayConfig = {
     examples: new DisplayPattern(),
     index: new DisplayPattern(),
     pronunciation: new DisplayPattern().center(),
-    spelling: (new DisplayPattern()).foreground('BRIGHT_WHITE').bold().center()
+    spelling: (new DisplayPattern()).foreground('BRIGHT_WHITE').bold().center(),
+    sectionTitle: (new DisplayPattern()).center().background('BRIGHT_YELLOW').foreground('BLACK')
   }
 }): void {
   const show_meaning_entry = (entry: MeaningEntry) => {
@@ -111,11 +113,11 @@ function show_word (entry: WordEntry, config: DisplayConfig = {
   console.log()
 
   if (entry.brief) {
-    console.log(' '.repeat(process.stdout.columns / 2 - 6) + 'Brief Meaning')
+    displayPattern.sectionTitle.print('Brief Meaning')
     show_meaning_entry(entry.brief)
   }
 
-  console.log(' '.repeat(process.stdout.columns / 2 - 6) + 'Full Meaning')
+  displayPattern.sectionTitle.print('Full Meaning')
   entry.meanings.forEach(meaningEntry => show_meaning_entry(meaningEntry))
 }
 
