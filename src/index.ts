@@ -33,6 +33,15 @@ interface DisplayConfig {
   }
 }
 
+interface DictionaryOptions {
+  dictionary: 'Merriam-Webster'
+  word: string
+}
+
+type ArgvOptions = DictionaryOptions | {
+  dictionary: 'help' | 'version'
+}
+
 function mw_url (word: string): string {
   const urlTemplate = 'https://www.merriam-webster.com/dictionary/'
   return urlTemplate + word
@@ -121,11 +130,66 @@ function show_word (entry: WordEntry, config: DisplayConfig = {
   entry.meanings.forEach(meaningEntry => show_meaning_entry(meaningEntry))
 }
 
-async function main () {
-  const word = 'word'
-  const html: string = await axios.get(mw_url(word)).then(res => res.data)
+
+
+function parse_arguments (): ArgvOptions {
+  // TODO: parse dictionary
+  // TODO: verbose
+  const flags = process.argv.slice(2)
+  const abbrPairs = [
+    ['-h', '--help'],
+    ['-V', '--version']
+  ]
+  abbrPairs.forEach(abbrPair => {
+    if (flags.includes(abbrPair[0])) {
+      flags.unshift(abbrPair[1]) // the last one of flags is the word to look up
+    }
+  })
+
+  if (flags.includes('--help')) {
+    return {
+      dictionary: 'help'
+    }
+  }
+  if (flags.includes('--version')) {
+    return {
+      dictionary: 'version'
+    }
+  }
+  return {
+    dictionary: 'Merriam-Webster',
+    word: flags[flags.length - 1]
+  }
+}
+
+function show_help (): void {
+  // TODO: help content
+  console.log('Sorry, no help at present.')
+}
+
+function show_version (): void {
+  console.log('Dictionary-cli v0.0.1')
+}
+
+async function handle_search (option: DictionaryOptions): Promise<void> {
+  const html: string = await axios.get(mw_url(option.word)).then(res => res.data)
   const wordEntry = mw_parse(html)
   show_word(wordEntry)
+}
+
+async function main () {
+  const option = parse_arguments()
+  switch (option.dictionary) {
+  case 'help':
+    show_help()
+    break
+  case 'version':
+    show_version()
+    break
+  default:
+    await handle_search(option)
+    break
+  }
 }
 
 main()
