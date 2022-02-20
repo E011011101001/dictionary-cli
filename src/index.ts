@@ -59,7 +59,7 @@ function mw_parse (html: string): WordEntry | ParseError {
   const misspelledTitle = $('h1.mispelled-word').text()
   if (misspelledTitle.length) {
     return {
-      misspelling: misspelledTitle.slice(1, misspelledTitle.length - 2),
+      misspelling: misspelledTitle.slice(1, misspelledTitle.length - 1),
       suggestions: $('p.spelling-suggestions > a')
         .map((_: number, el: cheerio.Element) => $(el).text())
         .get()
