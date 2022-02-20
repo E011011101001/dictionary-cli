@@ -20,6 +20,11 @@ interface WordEntry {
   meanings: MeaningEntry[]
 }
 
+interface ParseError {
+  misspelling: string
+  suggestions: string[]
+}
+
 interface DisplayConfig {
   exampleCount: number
   displayPattern: {
@@ -47,8 +52,18 @@ function mw_url (word: string): string {
   return urlTemplate + word
 }
 
-function mw_parse (html: string): WordEntry {
+function mw_parse (html: string): WordEntry | ParseError {
   const $ = cheerio.load(html)
+
+  const misspelledTitle = $('h1.mispelled-word').text()
+  if (misspelledTitle.length) {
+    return {
+      misspelling: misspelledTitle.slice(1, misspelledTitle.length - 2),
+      suggestions: $('p.spelling-suggestions > a')
+        .map((_: number, el: cheerio.Element) => $(el).text())
+        .get()
+    }
+  }
 
   $('div.more_defs').remove() // Remove kids definition, which also contains div.entry-header
   const PoSList: string[] = $('div.entry-header').find('span.fl a').map((_, el) => $(el).text()).get()
@@ -82,6 +97,12 @@ function mw_parse (html: string): WordEntry {
     brief,
     meanings
   }
+}
+
+function show_error (parseError: ParseError): void {
+  console.log(`Word "${parseError.misspelling}" does not exist.`)
+  console.log('Maybe you\'re looking for:')
+  console.log(parseError.suggestions.join('\n'))
 }
 
 function show_word (entry: WordEntry, config: DisplayConfig = {
@@ -171,10 +192,20 @@ function show_version (): void {
   console.log('Dictionary-cli v0.0.1')
 }
 
+function type_is_Parse_Error (obj: WordEntry | ParseError): obj is ParseError {
+  return (obj as ParseError).misspelling !== undefined
+}
+
 async function handle_search (option: DictionaryOptions): Promise<void> {
-  const html: string = await axios.get(mw_url(option.word)).then(res => res.data)
-  const wordEntry = mw_parse(html)
-  show_word(wordEntry)
+  const html: string = await axios.get(mw_url(option.word), {
+    validateStatus: (status: number) => status === 200 || status === 404
+  }).then(res => res.data)
+  const parseResult = mw_parse(html)
+  if (type_is_Parse_Error(parseResult)) {
+    show_error(parseResult)
+  } else {
+    show_word(parseResult)
+  }
 }
 
 async function main () {
