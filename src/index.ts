@@ -1,5 +1,6 @@
 import axios from 'axios'
 import * as cheerio from 'cheerio'
+import * as fs from 'fs'
 
 import { DisplayPattern } from './terminal-styles'
 
@@ -208,6 +209,11 @@ async function handle_search (option: DictionaryOptions): Promise<void> {
   }
 }
 
+function get_time_string (): string {
+  const date = new Date()
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`
+}
+
 async function main () {
   const option = parse_arguments()
   switch (option.dictionary) {
@@ -218,8 +224,19 @@ async function main () {
     show_version()
     break
   default:
-    await handle_search(option)
-    break
+    try {
+      await handle_search(option)
+      break
+    } catch (e) {
+      const logDirName = 'logs'
+      if (!fs.existsSync(logDirName)) {
+        fs.mkdirSync(logDirName)
+      }
+      const fileName = `error-${get_time_string()}.log`
+      fs.writeFileSync(`logs/${fileName}`, JSON.stringify(e.toJSON(), null, 2))
+      console.log(`An unexpected error occurred. You can check log ${fileName} for more details.`)
+      break
+    }
   }
 }
 
